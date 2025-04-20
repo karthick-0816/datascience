@@ -26,7 +26,7 @@ def predict():
     # Get form data
     input_data = {}
     for col in num_cols + cat_cols:
-        if col == 'Year':
+        if col == 'Manufacturing_year':
             year = int(request.form[col])
             input_data['Car_Age'] = 2025 - year
         elif col in num_cols:
