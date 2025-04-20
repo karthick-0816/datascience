@@ -5,6 +5,7 @@ from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 import pickle
+import re
 
 # Load dataset
 df = pd.read_csv('cars24data.csv')
@@ -14,6 +15,15 @@ print("Dataset Shape:", df.shape)
 print("Columns:", df.columns.tolist())
 print("Missing Values:\n", df.isnull().sum())
 
+# Clean Model Name by removing year prefixes
+def clean_model_name(model_name):
+    if isinstance(model_name, str):
+        return re.sub(r'^\d{4}\s+', '', model_name).strip()
+    return model_name
+
+df['Model Name'] = df['Model Name'].apply(clean_model_name)
+print("Unique Model Names after cleaning:\n", df['Model Name'].unique())
+
 # Add Car_Age from Manufacturing_year
 df['Car_Age'] = 2025 - df['Manufacturing_year']
 df = df.drop(['Manufacturing_year'], axis=1)
@@ -22,7 +32,12 @@ df = df.drop(['Manufacturing_year'], axis=1)
 num_cols = ['Engine capacity', 'KM driven', 'Car_Age']
 cat_cols = ['Model Name', 'Spare key', 'Transmission', 'Ownership', 'Fuel type', 'Imperfections', 'Repainted Parts']
 
-# Fill missing values (if any)
+# Verify columns exist in dataset
+missing_cols = [col for col in num_cols + cat_cols if col not in df.columns]
+if missing_cols:
+    print(f"Warning: Columns {missing_cols} not found in dataset.")
+
+# Fill missing values
 for col in num_cols:
     if col in df.columns:
         df[col] = df[col].fillna(df[col].median())
@@ -35,7 +50,7 @@ for col in cat_cols:
 df = df.dropna(subset=['Price'])
 
 # Encode categorical columns using OneHotEncoder
-encoder = OneHotEncoder(sparse_output=False, drop='first')
+encoder = OneHotEncoder(sparse_output=False, drop='first', handle_unknown='ignore')
 cat_encoded = encoder.fit_transform(df[cat_cols])
 cat_encoded_df = pd.DataFrame(cat_encoded, columns=encoder.get_feature_names_out(cat_cols))
 
@@ -56,6 +71,9 @@ X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, 
 # Train model
 model = RandomForestRegressor(n_estimators=100, random_state=42)
 model.fit(X_train, y_train)
+
+# Set feature names for model
+model.feature_names_in_ = X.columns.tolist()
 
 # Predict and evaluate
 y_pred = model.predict(X_test)
@@ -85,3 +103,5 @@ with open('num_cols.pkl', 'wb') as f:
 
 with open('cat_cols.pkl', 'wb') as f:
     pickle.dump(cat_cols, f)
+
+print("Pickled files saved: model.pkl, scaler.pkl, encoder.pkl, num_cols.pkl, cat_cols.pkl")
