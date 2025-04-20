@@ -4,8 +4,10 @@ import numpy as np
 import pandas as pd
 import logging
 import sys
+import re
+from datetime import datetime
 
-# Set up logging to console and file
+# Set up logging to console
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -32,9 +34,17 @@ except Exception as e:
     logger.error("Failed to load pickled files: %s", str(e))
     raise
 
+# Function to clean model name (remove year prefix)
+def clean_model_name(model_name):
+    if model_name:
+        return re.sub(r'^\d{4}\s+', '', model_name).strip()
+    return model_name
+
 @app.route('/')
 def home():
-    return render_template('index.html')
+    # Get valid model names from encoder
+    model_names = encoder.categories_[cat_cols.index('Model Name')] if 'Model Name' in cat_cols else []
+    return render_template('index.html', model_names=model_names)
 
 @app.route('/predict', methods=['POST'])
 def predict():
@@ -43,16 +53,43 @@ def predict():
         form_data = request.form.to_dict()
         logger.debug("Received form data: %s", form_data)
 
+        # Validate required fields
+        required_fields = num_cols + cat_cols + ['Manufacturing_year']
+        missing_fields = [field for field in required_fields if field not in form_data or not form_data[field]]
+        if missing_fields:
+            logger.error("Missing fields: %s", missing_fields)
+            model_names = encoder.categories_[cat_cols.index('Model Name')] if 'Model Name' in cat_cols else []
+            return render_template('index.html', prediction_text=f'Error: Missing data for {", ".join(missing_fields)}.', model_names=model_names)
+
         input_data = {}
         for col in num_cols + cat_cols:
             if col == 'Manufacturing_year':
-                year = request.form.get(col)
-                input_data['Car_Age'] = 2025 - int(year) if year and year.isdigit() else 0
+                continue  # Handled separately for Car_Age
             elif col in num_cols:
-                value = request.form.get(col)
-                input_data[col] = float(value) if value and value.replace('.', '').isdigit() else 0.0
+                value = form_data.get(col, '').strip()
+                if not value or not value.replace('.', '').replace('-', '').isdigit():
+                    logger.error("Invalid numeric input for %s: %s", col, value)
+                    model_names = encoder.categories_[cat_cols.index('Model Name')] if 'Model Name' in cat_cols else []
+                    return render_template('index.html', prediction_text=f'Error: Invalid numeric input for {col}.', model_names=model_names)
+                input_data[col] = float(value)
             else:
-                input_data[col] = request.form.get(col, '')
+                value = form_data.get(col, '').strip()
+                if col == 'Model Name':
+                    value = clean_model_name(value)  # Clean model name
+                input_data[col] = value if value else ''
+
+        # Calculate Car_Age
+        year = form_data.get('Manufacturing_year', '').strip()
+        if not year or not year.isdigit():
+            logger.error("Invalid Manufacturing_year: %s", year)
+            model_names = encoder.categories_[cat_cols.index('Model Name')] if 'Model Name' in cat_cols else []
+            return render_template('index.html', prediction_text='Error: Invalid Manufacturing Year.', model_names=model_names)
+        car_age = datetime.now().year - int(year)
+        if car_age < 0 or car_age > 100:
+            logger.error("Invalid Car_Age: %s", car_age)
+            model_names = encoder.categories_[cat_cols.index('Model Name')] if 'Model Name' in cat_cols else []
+            return render_template('index.html', prediction_text='Error: Invalid Manufacturing Year.', model_names=model_names)
+        input_data['Car_Age'] = car_age
 
         logger.debug("Processed input data: %s", input_data)
 
@@ -61,12 +98,15 @@ def predict():
 
         # Encode categorical variables
         try:
+            if hasattr(encoder, 'handle_unknown') and encoder.handle_unknown != 'ignore':
+                logger.warning("Encoder does not have handle_unknown='ignore'. Consider updating encoder.")
             cat_encoded = encoder.transform(input_df[cat_cols])
             cat_encoded_df = pd.DataFrame(cat_encoded, columns=encoder.get_feature_names_out(cat_cols))
             input_df = pd.concat([input_df.drop(cat_cols, axis=1), cat_encoded_df], axis=1)
         except ValueError as e:
             logger.error("Encoding error: %s. Categories might not match training data.", str(e))
-            return render_template('index.html', prediction_text='Error: Invalid category. Please use options from the dropdowns.')
+            model_names = encoder.categories_[cat_cols.index('Model Name')] if 'Model Name' in cat_cols else []
+            return render_template('index.html', prediction_text='Error: Invalid Model Name. Please select a valid car model from the dropdown.', model_names=model_names)
 
         # Ensure all columns match training data
         feature_cols = model.feature_names_in_
@@ -86,17 +126,21 @@ def predict():
         prediction = model.predict(input_scaled)[0]
         logger.debug("Prediction: %s", prediction)
 
-        return render_template('index.html', prediction_text=f'Predicted Price: ${prediction:.2f}')
+        model_names = encoder.categories_[cat_cols.index('Model Name')] if 'Model Name' in cat_cols else []
+        return render_template('index.html', prediction_text=f'Predicted Price: ${prediction:.2f}', model_names=model_names)
 
     except ValueError as e:
         logger.error("ValueError: %s", str(e))
-        return render_template('index.html', prediction_text='Error: Invalid numeric input. Please enter valid numbers.')
+        model_names = encoder.categories_[cat_cols.index('Model Name')] if 'Model Name' in cat_cols else []
+        return render_template('index.html', prediction_text='Error: Invalid numeric input. Please enter valid numbers.', model_names=model_names)
     except KeyError as e:
         logger.error("KeyError: %s", str(e))
-        return render_template('index.html', prediction_text='Error: Missing data. Please fill all fields.')
+        model_names = encoder.categories_[cat_cols.index('Model Name')] if 'Model Name' in cat_cols else []
+        return render_template('index.html', prediction_text='Error: Missing data. Please fill all fields.', model_names=model_names)
     except Exception as e:
         logger.error("Unexpected error: %s", str(e))
-        return render_template('index.html', prediction_text='Error: An unexpected issue occurred. Please try again.')
+        model_names = encoder.categories_[cat_cols.index('Model Name')] if 'Model Name' in cat_cols else []
+        return render_template('index.html', prediction_text='Error: An unexpected issue occurred. Please try again.', model_names=model_names)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=10000)
