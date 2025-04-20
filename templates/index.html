@@ -57,6 +57,15 @@
                 <option value="Second">Second</option>
                 <option value="Third">Third</option>
             </select><br>
+            <label>Spare Key:</label><br>
+            <select name="Spare key">
+                <option value="" selected>No</option>
+                <option value="Yes">Yes</option>
+            </select><br>
+            <label>Imperfections:</label><br>
+            <input type="text" name="Imperfections" placeholder="e.g., scratches, dents" value=""><br>
+            <label>Repainted Parts:</label><br>
+            <input type="text" name="Repainted Parts" placeholder="e.g., hood, bumper" value=""><br>
             <input type="submit" value="Predict Price" class="submit-btn">
         </form>
         {% if prediction_text %}
