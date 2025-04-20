@@ -53,30 +53,39 @@ def predict():
         form_data = request.form.to_dict()
         logger.debug("Received form data: %s", form_data)
 
-        # Validate required fields
-        required_fields = num_cols + cat_cols + ['Manufacturing_year']
-        missing_fields = [field for field in required_fields if field not in form_data or not form_data[field]]
+        # Define required fields from form (exclude computed or optional fields)
+        required_form_fields = [
+            'Manufacturing_year', 'KM driven', 'Mileage', 'Engine capacity',
+            'Power', 'Seats', 'Model Name', 'Fuel type', 'Transmission', 'Ownership'
+        ]
+        missing_fields = [field for field in required_form_fields if field not in form_data or not form_data[field].strip()]
         if missing_fields:
-            logger.error("Missing fields: %s", missing_fields)
+            logger.error("Missing required form fields: %s", missing_fields)
             model_names = encoder.categories_[cat_cols.index('Model Name')] if 'Model Name' in cat_cols else []
             return render_template('index.html', prediction_text=f'Error: Missing data for {", ".join(missing_fields)}.', model_names=model_names)
 
         input_data = {}
-        for col in num_cols + cat_cols:
-            if col == 'Manufacturing_year':
-                continue  # Handled separately for Car_Age
-            elif col in num_cols:
-                value = form_data.get(col, '').strip()
-                if not value or not value.replace('.', '').replace('-', '').isdigit():
-                    logger.error("Invalid numeric input for %s: %s", col, value)
-                    model_names = encoder.categories_[cat_cols.index('Model Name')] if 'Model Name' in cat_cols else []
-                    return render_template('index.html', prediction_text=f'Error: Invalid numeric input for {col}.', model_names=model_names)
-                input_data[col] = float(value)
-            else:
-                value = form_data.get(col, '').strip()
+        # Handle numeric columns
+        for col in num_cols:
+            if col == 'Car_Age':
+                continue  # Computed later
+            value = form_data.get(col, '').strip()
+            if not value or not value.replace('.', '').replace('-', '').isdigit():
+                logger.error("Invalid numeric input for %s: %s", col, value)
+                model_names = encoder.categories_[cat_cols.index('Model Name')] if 'Model Name' in cat_cols else []
+                return render_template('index.html', prediction_text=f'Error: Invalid numeric input for {col}.', model_names=model_names)
+            input_data[col] = float(value)
+
+        # Handle categorical columns with defaults for optional fields
+        for col in cat_cols:
+            if col in form_data:
+                value = form_data[col].strip()
                 if col == 'Model Name':
                     value = clean_model_name(value)  # Clean model name
                 input_data[col] = value if value else ''
+            else:
+                # Default values for optional categorical fields
+                input_data[col] = ''  # Empty string for categorical fields like Spare key, Imperfections, Repainted Parts
 
         # Calculate Car_Age
         year = form_data.get('Manufacturing_year', '').strip()
