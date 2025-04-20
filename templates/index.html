@@ -16,29 +16,22 @@
     <h1>Used Car Price Prediction</h1>
     <div class="form-container">
         <form action="/predict" method="post">
-            <label>Year:</label><br>
-            <input type="number" name="Year" required><br>
-            <label>Kilometers Driven:</label><br>
-            <input type="number" name="Kilometers_Driven" required><br>
+            <label>Manufacturing Year:</label><br>
+            <input type="number" name="Manufacturing_year" required><br>
+            <label>KM Driven:</label><br>
+            <input type="number" name="KM driven" required><br>
             <label>Mileage (kmpl):</label><br>
             <input type="number" step="0.1" name="Mileage" required><br>
-            <label>Engine (cc):</label><br>
-            <input type="number" name="Engine" required><br>
+            <label>Engine Capacity (cc):</label><br>
+            <input type="number" name="Engine capacity" required><br>
             <label>Power (bhp):</label><br>
             <input type="number" step="0.1" name="Power" required><br>
             <label>Seats:</label><br>
             <input type="number" name="Seats" required><br>
-            <label>Brand:</label><br>
-            <select name="Brand" required>
-                <option value="Maruti">Maruti</option>
-                <option value="Hyundai">Hyundai</option>
-                <option value="Honda">Honda</option>
-                <!-- Add more brands as per dataset -->
-            </select><br>
-            <label>Model:</label><br>
-            <input type="text" name="Model" required><br>
+            <label>Model Name:</label><br>
+            <input type="text" name="Model Name" required><br>
             <label>Fuel Type:</label><br>
-            <select name="Fuel_Type" required>
+            <select name="Fuel type" required>
                 <option value="Petrol">Petrol</option>
                 <option value="Diesel">Diesel</option>
                 <option value="CNG">CNG</option>
@@ -48,8 +41,8 @@
                 <option value="Manual">Manual</option>
                 <option value="Automatic">Automatic</option>
             </select><br>
-            <label>Owner Type:</label><br>
-            <select name="Owner_Type" required>
+            <label>Ownership:</label><br>
+            <select name="Ownership" required>
                 <option value="First">First</option>
                 <option value="Second">Second</option>
                 <option value="Third">Third</option>
@@ -60,5 +53,6 @@
         <div class="prediction">{{ prediction_text }}</div>
         {% endif %}
     </div>
+    <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'933516a3bd5fc004',t:'MTc0NTE1Njc5Mi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>
 </body>
 </html>
